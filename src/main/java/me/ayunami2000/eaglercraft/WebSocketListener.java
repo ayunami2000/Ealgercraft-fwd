@@ -2,14 +2,23 @@ package me.ayunami2000.eaglercraft;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.regex.Pattern;
 
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 
 public class WebSocketListener extends WebSocketServer {
-
     private InetSocketAddress bungeeProxy;
+
+    Pattern p = Pattern.compile("^"
+            + "(((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}" // Domain name
+            + "|"
+            + "localhost" // localhost
+            + "|"
+            + "(([0-9]{1,3}\\.){3})[0-9]{1,3})" // Ip
+            + "(:"
+            + "[0-9]{1,5})?$"); // Port
 
     public WebSocketListener(InetSocketAddress origSock, InetSocketAddress sock) {
         super(sock);
@@ -46,7 +55,30 @@ public class WebSocketListener extends WebSocketServer {
     @Override
     public void onOpen(WebSocket arg0, ClientHandshake arg1) {
         System.out.println("websocket opened - " + arg0.getRemoteSocketAddress());
-        WebSocketProxy proxyObj = new WebSocketProxy(arg0, bungeeProxy);
+        InetSocketAddress theSock = bungeeProxy;
+        if(theSock==null){
+            String[] parts=arg1.getResourceDescriptor().split("/");
+            if(parts.length>0) {
+                String path = parts[parts.length - 1];
+                if (p.matcher(path).matches()) {
+                    String ip = path;
+                    String port = "25565";
+                    if (path.contains(":")) {
+                        String[] ipPort = path.split(":", 2);
+                        ip = ipPort[0];
+                        port = ipPort[1];
+                    }
+                    theSock = new InetSocketAddress(ip, Integer.parseInt(port));
+                    if (theSock.getAddress().isSiteLocalAddress() || theSock.getAddress().isLoopbackAddress())
+                        theSock = null;
+                }
+            }
+            if(theSock==null){
+                arg0.close();
+                return;
+            }
+        }
+        WebSocketProxy proxyObj = new WebSocketProxy(arg0, theSock);
         arg0.setAttachment(proxyObj);
         if(!proxyObj.connect()) {
             arg0.close();

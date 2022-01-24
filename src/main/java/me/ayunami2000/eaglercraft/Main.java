@@ -1,8 +1,5 @@
 package me.ayunami2000.eaglercraft;
 
-import io.netty.channel.socket.SocketChannel;
-
-import javax.net.ssl.SSLSocketFactory;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -20,9 +17,11 @@ public class Main {
                     WebSocketProxyLocal.start(Integer.parseInt(args[2]));
                 } catch (InterruptedException ex) {}
             })).start();
-        }else if(args[0].equalsIgnoreCase("server")) {
-            InetSocketAddress origSock = new InetSocketAddress(args[1], Integer.parseInt(args[2]));
-            InetSocketAddress sock = new InetSocketAddress("127.0.0.1", Integer.parseInt(args[3]));
+        }else if(args[0].equalsIgnoreCase("server")||args[0].equalsIgnoreCase("public")) {
+            boolean cookieMode = args[0].equalsIgnoreCase("public");
+            InetSocketAddress origSock = null;
+            if(!cookieMode)origSock = new InetSocketAddress(args[1], Integer.parseInt(args[2]));
+            InetSocketAddress sock = new InetSocketAddress("127.0.0.1", Integer.parseInt(args[cookieMode?1:3]));
             /*
             int port = 0;
             try {
@@ -35,14 +34,18 @@ public class Main {
             }
             */
             try {
-                new WebSocketListener(origSock, sock);
+                if(cookieMode){
+                    new WebSocketListener(null, sock);
+                }else{
+                    new WebSocketListener(origSock, sock);
+                }
                 System.out.println("Listening websockets on " + sock);
             } catch (Throwable t) {
                 System.out.println("Could not bind websocket listener to host " + sock);
                 t.printStackTrace();
             }
         }else{
-            System.out.println("Usage: ... <client|server> <<ip> <port> <localport>|<websocketurl> <localport>>");
+            System.out.println("Usage: ... <client|server> <<ip> <port> <localport>|<websocketurl> <localport>> OR ... public <localport> (url path is used to specify ip or ip:port)");
         }
     }
 }
